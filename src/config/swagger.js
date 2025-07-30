@@ -19,7 +19,7 @@ const options = {
     },
     servers: [
       {
-        url: 'https://web-production-d479.up.railway.app/',
+        url: 'https://web-production-d479.up.railway.app/api',
         description: 'Production server',
       },
     ],
