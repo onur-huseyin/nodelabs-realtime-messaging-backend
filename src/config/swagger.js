@@ -10,7 +10,7 @@ const options = {
         'Modern teknolojiler kullanılarak geliştirilmiş gerçek zamanlı mesajlaşma sistemi API dokümantasyonu',
       contact: {
         name: 'Hüseyin Onur',
-        email: 'onur@example.com',
+        email: 'onur.huseyin05@gmail.com',
       },
       license: {
         name: 'MIT',
@@ -19,11 +19,7 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:3000/api',
-        description: 'Development server',
-      },
-      {
-        url: 'https://api.example.com/api',
+        url: 'https://web-production-d479.up.railway.app/',
         description: 'Production server',
       },
     ],
