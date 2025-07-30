@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Socket.IO Test</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .status {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+      }
+      .connected {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .disconnected {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      .form-group {
+        margin: 10px 0;
+      }
+      input,
+      button {
+        padding: 8px;
+        margin: 5px;
+      }
+      #messages {
+        height: 300px;
+        overflow-y: auto;
+        border: 1px solid #ccc;
+        padding: 10px;
+        background-color: #f9f9f9;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Socket.IO Bağlantı Testi</h1>
+
+    <div
+      style="
+        background-color: #e7f3ff;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+      "
+    >
+      <h3>📋 Kullanım Talimatları:</h3>
+      <ol>
+        <li>
+          <strong>ÖNEMLİ:</strong> Bu sayfa HTTP üzerinden açılmalıdır:
+          <code>http://localhost:3000/test-socket</code>
+        </li>
+        <li>
+          Swagger'da (<a href="/api-docs" target="_blank">/api-docs</a>)
+          kullanıcı girişi yapın
+        </li>
+        <li>JWT token'ı kopyalayın ve yukarıdaki alana yapıştırın</li>
+        <li>"Bağlan" butonuna tıklayın</li>
+        <li>"Test Login" butonuna tıklayarak kullanıcıyı online yapın</li>
+        <li>"Durum Kontrol Et" ile online durumunu kontrol edin</li>
+      </ol>
+      <p style="color: red; font-weight: bold">
+        ⚠️ Dosyayı doğrudan tarayıcıda açmayın! HTTP üzerinden erişin.
+      </p>
+    </div>
+
+    <div class="form-group">
+      <label for="token">JWT Token:</label>
+      <input
+        type="text"
+        id="token"
+        placeholder="JWT token girin"
+        style="width: 400px"
+      />
+      <button id="connectBtn">Bağlan</button>
+      <button id="disconnectBtn">Bağlantıyı Kes</button>
+    </div>
+
+    <div id="status" class="status disconnected">
+      Bağlantı durumu: Bağlı değil
+    </div>
+
+    <div class="form-group">
+      <button id="checkStatusBtn">Durum Kontrol Et</button>
+      <button id="testLoginBtn">Test Login</button>
+      <button id="clearMessagesBtn">Mesajları Temizle</button>
+    </div>
+
+    <div id="messages"></div>
+
+    <script>
+      let socket = null;
+      let token = '';
+
+      // Event listeners
+      document.addEventListener('DOMContentLoaded', function () {
+        document
+          .getElementById('connectBtn')
+          .addEventListener('click', connect);
+        document
+          .getElementById('disconnectBtn')
+          .addEventListener('click', disconnect);
+        document
+          .getElementById('checkStatusBtn')
+          .addEventListener('click', checkStatus);
+        document
+          .getElementById('testLoginBtn')
+          .addEventListener('click', testLogin);
+        document
+          .getElementById('clearMessagesBtn')
+          .addEventListener('click', clearMessages);
+      });
+
+      function connect() {
+        token = document.getElementById('token').value;
+        if (!token) {
+          alert('Lütfen JWT token girin');
+          return;
+        }
+
+        // URL kontrolü
+        const currentOrigin = window.location.origin;
+        if (currentOrigin === 'null' || currentOrigin === 'file://') {
+          alert(
+            'Bu sayfa HTTP üzerinden açılmalıdır. Lütfen http://localhost:3000/test-socket adresini kullanın.'
+          );
+          return;
+        }
+
+        // Socket.IO bağlantısı
+        socket = io(currentOrigin, {
+          auth: {
+            token: token,
+          },
+          transports: ['websocket', 'polling'],
+        });
+
+        socket.on('connect', () => {
+          updateStatus('Bağlandı', true);
+          addMessage('Socket.IO bağlantısı kuruldu');
+        });
+
+        socket.on('disconnect', () => {
+          updateStatus('Bağlantı kesildi', false);
+          addMessage('Socket.IO bağlantısı kesildi');
+        });
+
+        socket.on('connection_success', (data) => {
+          addMessage('Bağlantı başarılı: ' + JSON.stringify(data));
+        });
+
+        socket.on('user_online', (data) => {
+          addMessage(' Kullanıcı online: ' + JSON.stringify(data));
+        });
+
+        socket.on('user_offline', (data) => {
+          addMessage('Kullanıcı offline: ' + JSON.stringify(data));
+        });
+
+        socket.on('connect_error', (error) => {
+          updateStatus('Bağlantı hatası', false);
+          addMessage(' Bağlantı hatası: ' + error.message);
+        });
+      }
+
+      function disconnect() {
+        if (socket) {
+          socket.disconnect();
+          socket = null;
+        }
+        updateStatus('Bağlı değil', false);
+      }
+
+      function updateStatus(message, connected) {
+        const statusDiv = document.getElementById('status');
+        statusDiv.textContent = 'Bağlantı durumu: ' + message;
+        statusDiv.className =
+          'status ' + (connected ? 'connected' : 'disconnected');
+      }
+
+      function addMessage(message) {
+        const messagesDiv = document.getElementById('messages');
+        const time = new Date().toLocaleTimeString();
+        messagesDiv.innerHTML += `<div>[${time}] ${message}</div>`;
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+
+      function clearMessages() {
+        document.getElementById('messages').innerHTML = '';
+      }
+
+      async function checkStatus() {
+        if (!token) {
+          alert('Önce token ile bağlanın');
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/online/connection-status', {
+            headers: {
+              Authorization: 'Bearer ' + token,
+            },
+          });
+
+          const data = await response.json();
+          addMessage('📊 Durum kontrolü: ' + JSON.stringify(data, null, 2));
+        } catch (error) {
+          addMessage('❌ Durum kontrolü hatası: ' + error.message);
+        }
+      }
+
+      // Test login fonksiyonu
+      async function testLogin() {
+        if (!token) {
+          alert('Önce token ile bağlanın');
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/online/test-login', {
+            method: 'POST',
+            headers: {
+              Authorization: 'Bearer ' + token,
+            },
+          });
+
+          const data = await response.json();
+          addMessage('🔑 Test login: ' + JSON.stringify(data, null, 2));
+        } catch (error) {
+          addMessage('❌ Test login hatası: ' + error.message);
+        }
+      }
+    </script>
+  </body>
+</html>

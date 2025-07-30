@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # MongoDB Service
+  mongodb:
+    image: mongo:7.0
+    container_name: realtime-messaging-mongodb
+    restart: unless-stopped
+    ports:
+      - '27018:27017' # Farklı port kullanıyoruz
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: realtime_messaging
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init:/docker-entrypoint-initdb.d
+    networks:
+      - messaging-network
+
+  # Redis Service
+  redis:
+    image: redis:7.2-alpine
+    container_name: realtime-messaging-redis
+    restart: unless-stopped
+    ports:
+      - '6380:6379' # Farklı port kullanıyoruz
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - messaging-network
+
+  # RabbitMQ Service
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: realtime-messaging-rabbitmq
+    restart: unless-stopped
+    ports:
+      - '5673:5672' # AMQP port
+      - '15673:15672' # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password123
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - messaging-network
+
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+
+networks:
+  messaging-network:
+    driver: bridge
