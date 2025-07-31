@@ -67,7 +67,16 @@
         <li>"Bağlan" butonuna tıklayın</li>
         <li>"Test Login" butonuna tıklayarak kullanıcıyı online yapın</li>
         <li>"Durum Kontrol Et" ile online durumunu kontrol edin</li>
+        <li><strong>YENİ:</strong> Socket.IO event'lerini test edin</li>
       </ol>
+             <h4>🔧 Socket.IO Event Testleri:</h4>
+       <ul>
+         <li><strong>Konuşmaları Getir:</strong> Mevcut konuşmaları listeler ve ID'leri gösterir</li>
+         <li><strong>Odaya Katıl:</strong> Konuşma odasına katılma (Konuşma ID gerekli)</li>
+         <li><strong>Mesaj Gönder:</strong> Gerçek zamanlı mesaj gönderme (Alıcı ID gerekli)</li>
+         <li><strong>Yazıyor:</strong> Typing indicator testi (Alıcı ID gerekli)</li>
+         <li><strong>Okundu İşaretle:</strong> Mesaj okundu bildirimi (Mesaj ID ve Gönderici ID gerekli)</li>
+       </ul>
       <p style="color: red; font-weight: bold">
         ⚠️ Dosyayı doğrudan tarayıcıda açmayın! HTTP üzerinden erişin.
       </p>
@@ -95,6 +104,43 @@
       <button id="clearMessagesBtn">Mesajları Temizle</button>
     </div>
 
+    <!-- Socket.IO Event Testleri -->
+    <div style="margin: 20px 0; padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
+      <h3>🔧 Socket.IO Event Testleri</h3>
+      
+             <!-- Join Room Test -->
+       <div class="form-group">
+         <label for="conversationId">Konuşma ID:</label>
+         <input type="text" id="conversationId" placeholder="conversation_123" style="width: 200px;" />
+         <button id="joinRoomBtn">Odaya Katıl</button>
+         <button id="getConversationsBtn">Konuşmaları Getir</button>
+       </div>
+
+      <!-- Send Message Test -->
+      <div class="form-group">
+        <label for="receiverId">Alıcı ID:</label>
+        <input type="text" id="receiverId" placeholder="user_id" style="width: 200px;" />
+        <label for="messageContent">Mesaj:</label>
+        <input type="text" id="messageContent" placeholder="Test mesajı" style="width: 200px;" />
+        <button id="sendMessageBtn">Mesaj Gönder</button>
+      </div>
+
+      <!-- Typing Test -->
+      <div class="form-group">
+        <button id="typingStartBtn">Yazıyor Başlat</button>
+        <button id="typingStopBtn">Yazıyor Durdur</button>
+      </div>
+
+      <!-- Mark as Read Test -->
+      <div class="form-group">
+        <label for="messageId">Mesaj ID:</label>
+        <input type="text" id="messageId" placeholder="message_id" style="width: 200px;" />
+        <label for="senderId">Gönderici ID:</label>
+        <input type="text" id="senderId" placeholder="sender_id" style="width: 200px;" />
+        <button id="markAsReadBtn">Okundu İşaretle</button>
+      </div>
+    </div>
+
     <div id="messages"></div>
 
     <script>
@@ -118,6 +164,14 @@
         document
           .getElementById('clearMessagesBtn')
           .addEventListener('click', clearMessages);
+        
+                 // Socket.IO Event Test Buttons
+         document.getElementById('joinRoomBtn').addEventListener('click', joinRoom);
+         document.getElementById('getConversationsBtn').addEventListener('click', getConversations);
+         document.getElementById('sendMessageBtn').addEventListener('click', sendMessage);
+         document.getElementById('typingStartBtn').addEventListener('click', typingStart);
+         document.getElementById('typingStopBtn').addEventListener('click', typingStop);
+         document.getElementById('markAsReadBtn').addEventListener('click', markAsRead);
       });
 
       function connect() {
@@ -166,9 +220,42 @@
           addMessage('Kullanıcı offline: ' + JSON.stringify(data));
         });
 
+        // Yeni Socket.IO Event Listeners
+        socket.on('room_joined', (data) => {
+          addMessage('✅ Odaya katıldı: ' + JSON.stringify(data));
+        });
+
+        socket.on('user_joined_room', (data) => {
+          addMessage('👥 Kullanıcı odaya katıldı: ' + JSON.stringify(data));
+        });
+
+        socket.on('room_error', (data) => {
+          addMessage('❌ Oda hatası: ' + JSON.stringify(data));
+        });
+
+        socket.on('message_sent', (data) => {
+          addMessage('✅ Mesaj gönderildi: ' + JSON.stringify(data));
+        });
+
+        socket.on('message_received', (data) => {
+          addMessage('📨 Mesaj alındı: ' + JSON.stringify(data));
+        });
+
+        socket.on('message_error', (data) => {
+          addMessage('❌ Mesaj hatası: ' + JSON.stringify(data));
+        });
+
+        socket.on('user_typing', (data) => {
+          addMessage('✍️ Kullanıcı yazıyor: ' + JSON.stringify(data));
+        });
+
+        socket.on('message_read', (data) => {
+          addMessage('👁️ Mesaj okundu: ' + JSON.stringify(data));
+        });
+
         socket.on('connect_error', (error) => {
           updateStatus('Bağlantı hatası', false);
-          addMessage(' Bağlantı hatası: ' + error.message);
+          addMessage('❌ Bağlantı hatası: ' + error.message);
         });
       }
 
@@ -196,6 +283,117 @@
 
       function clearMessages() {
         document.getElementById('messages').innerHTML = '';
+      }
+
+             // Socket.IO Event Test Functions
+       async function getConversations() {
+         if (!token) {
+           alert('Önce token ile bağlanın');
+           return;
+         }
+
+         try {
+           const response = await fetch('/api/messages/conversations', {
+             headers: {
+               Authorization: 'Bearer ' + token,
+             },
+           });
+
+           const data = await response.json();
+           
+           if (data.success) {
+             addMessage('📋 Konuşmalar:');
+             data.data.conversations.forEach((conv, index) => {
+               addMessage(`  ${index + 1}. ID: ${conv.id} | Kullanıcı: ${conv.otherUser.username} | Son Mesaj: ${conv.lastMessage ? conv.lastMessage.content : 'Yok'}`);
+             });
+             
+             // İlk konuşmanın ID'sini otomatik olarak input'a yerleştir
+             if (data.data.conversations.length > 0) {
+               document.getElementById('conversationId').value = data.data.conversations[0].id;
+               addMessage('✅ İlk konuşma ID\'si otomatik olarak yerleştirildi');
+             }
+           } else {
+             addMessage('❌ Konuşmalar getirilemedi: ' + data.message);
+           }
+         } catch (error) {
+           addMessage('❌ Konuşmalar getirme hatası: ' + error.message);
+         }
+       }
+
+       function joinRoom() {
+         if (!socket) {
+           alert('Önce bağlantı kurun');
+           return;
+         }
+         const conversationId = document.getElementById('conversationId').value;
+         if (!conversationId) {
+           alert('Konuşma ID girin');
+           return;
+         }
+         socket.emit('join_room', { conversationId });
+         addMessage('🔄 Odaya katılma isteği gönderildi: ' + conversationId);
+       }
+
+      function sendMessage() {
+        if (!socket) {
+          alert('Önce bağlantı kurun');
+          return;
+        }
+        const receiverId = document.getElementById('receiverId').value;
+        const content = document.getElementById('messageContent').value;
+        if (!receiverId || !content) {
+          alert('Alıcı ID ve mesaj girin');
+          return;
+        }
+        socket.emit('send_message', {
+          receiverId,
+          content,
+          messageType: 'text'
+        });
+        addMessage('🔄 Mesaj gönderme isteği: ' + content);
+      }
+
+      function typingStart() {
+        if (!socket) {
+          alert('Önce bağlantı kurun');
+          return;
+        }
+        const receiverId = document.getElementById('receiverId').value;
+        if (!receiverId) {
+          alert('Alıcı ID girin');
+          return;
+        }
+        socket.emit('typing_start', { receiverId });
+        addMessage('🔄 Yazıyor başlatma isteği gönderildi');
+      }
+
+      function typingStop() {
+        if (!socket) {
+          alert('Önce bağlantı kurun');
+          return;
+        }
+        const receiverId = document.getElementById('receiverId').value;
+        if (!receiverId) {
+          alert('Alıcı ID girin');
+          return;
+        }
+        socket.emit('typing_stop', { receiverId });
+        addMessage('🔄 Yazıyor durdurma isteği gönderildi');
+      }
+
+      function markAsRead() {
+        if (!socket) {
+          alert('Önce bağlantı kurun');
+          return;
+        }
+        const messageId = document.getElementById('messageId').value;
+        const senderId = document.getElementById('senderId').value;
+        if (!messageId || !senderId) {
+          alert('Mesaj ID ve Gönderici ID girin');
+          return;
+        }
+        socket.emit('mark_as_read', { messageId, senderId });
+        addMessage('🔄 Okundu işaretleme isteği gönderildi');
       }
 
       async function checkStatus() {

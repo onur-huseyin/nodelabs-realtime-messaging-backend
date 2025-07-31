@@ -118,6 +118,11 @@ class SocketService {
         this.handleTypingStop(socket, data);
       });
 
+      // Konuşma odasına katılma eventi
+      socket.on('join_room', (data) => {
+        this.handleJoinRoom(socket, data);
+      });
+
       // Mesaj okundu eventi
       socket.on('mark_as_read', async (data) => {
         await this.handleMarkAsRead(socket, data);
@@ -239,6 +244,42 @@ class SocketService {
         userId: sender._id,
         username: sender.username,
         isTyping: false,
+      });
+    }
+  }
+
+  // Konuşma odasına katılma
+  handleJoinRoom(socket, data) {
+    const { conversationId } = data;
+    const user = socket.user;
+
+    try {
+      // Socket'i konuşma odasına ekle
+      socket.join(`conversation_${conversationId}`);
+
+      logger.info(`User ${user.username} joined conversation room: ${conversationId}`);
+
+      // Kullanıcıya onay gönder
+      socket.emit('room_joined', {
+        conversationId,
+        message: 'Successfully joined conversation room',
+      });
+
+      // Odadaki diğer kullanıcılara bildir
+      socket.to(`conversation_${conversationId}`).emit('user_joined_room', {
+        conversationId,
+        user: {
+          id: user._id,
+          username: user.username,
+        },
+        timestamp: new Date(),
+      });
+
+    } catch (error) {
+      logger.error('Join room error:', error);
+      socket.emit('room_error', {
+        message: 'Failed to join conversation room',
+        error: error.message,
       });
     }
   }
